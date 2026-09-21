@@ -1,0 +1,19 @@
+{
+  "name": "shiba-code",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev --workspace=@shiba-code/server",
+    "dev:client": "npm run dev --workspace=@shiba-code/client",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "build": "npm run build --workspaces",
+    "test": "node test-verification.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.8.2"
+  }
+}
