@@ -14,6 +14,10 @@ export const config = {
   reposDir: path.join(baseDir, "repositories"),
   dbPath: path.join(baseDir, "shiba-code.json"),
   googleClientId: process.env.GOOGLE_CLIENT_ID || "",
+  githubClientId: process.env.GITHUB_CLIENT_ID || "",
+  githubClientSecret: process.env.GITHUB_CLIENT_SECRET || "",
+  githubCallbackUrl: process.env.GITHUB_CALLBACK_URL || "",
+  githubToken: process.env.GITHUB_TOKEN || "",
   allowedEmails: (process.env.ALLOWED_EMAILS || "")
     .split(",")
     .map((e) => e.trim().toLowerCase())

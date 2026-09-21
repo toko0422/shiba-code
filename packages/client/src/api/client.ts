@@ -5,6 +5,8 @@ import {
   GitStatusSummary,
   AuthUser,
   AgentType,
+  GitHubAuthStatus,
+  GitHubRepoItem,
 } from "@shiba-code/shared";
 
 export const api = {
@@ -26,6 +28,50 @@ export const api = {
 
   async logout(): Promise<void> {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+  },
+
+  // GitHub Auth
+  async getGitHubStatus(): Promise<GitHubAuthStatus> {
+    const res = await fetch("/api/auth/github/status", {
+      credentials: "include",
+    });
+    if (!res.ok) return { connected: false, hasOAuthConfig: false };
+    return res.json();
+  },
+
+  async saveGitHubToken(
+    token: string,
+  ): Promise<{ ok: boolean; username?: string; avatarUrl?: string }> {
+    const res = await fetch("/api/auth/github/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => null);
+      throw new Error(err?.error || "Failed to save GitHub token");
+    }
+    return res.json();
+  },
+
+  async disconnectGitHub(): Promise<void> {
+    await fetch("/api/auth/github/disconnect", {
+      method: "POST",
+      credentials: "include",
+    });
+  },
+
+  async getGitHubRepos(): Promise<GitHubRepoItem[]> {
+    const res = await fetch("/api/repositories/github", {
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => null);
+      throw new Error(err?.error || "Failed to fetch GitHub repositories");
+    }
+    const data = await res.json();
+    return data.repositories;
   },
 
   // Repositories

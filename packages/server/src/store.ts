@@ -3,10 +3,19 @@ import path from "node:path";
 import { Repository, Worktree, AgentSession } from "@shiba-code/shared";
 import { config } from "./config.js";
 
+export interface GitHubAuthData {
+  accessToken: string;
+  username: string;
+  avatarUrl?: string;
+  email?: string;
+  updatedAt: string;
+}
+
 interface DatabaseSchema {
   repositories: Repository[];
   worktrees: Worktree[];
   sessions: AgentSession[];
+  githubAuth?: GitHubAuthData;
 }
 
 const defaultData: DatabaseSchema = {
@@ -129,6 +138,21 @@ class Store {
     } else {
       this.data.sessions.push(session);
     }
+    this.save();
+  }
+
+  // GitHub Auth
+  getGitHubAuth(): GitHubAuthData | undefined {
+    return this.data.githubAuth;
+  }
+
+  saveGitHubAuth(auth: GitHubAuthData): void {
+    this.data.githubAuth = auth;
+    this.save();
+  }
+
+  deleteGitHubAuth(): void {
+    delete this.data.githubAuth;
     this.save();
   }
 }

@@ -28,10 +28,15 @@ export class SessionInstance extends EventEmitter {
     }
 
     const isWindows = os.platform() === "win32";
-    const env = {
+    const githubToken =
+      store.getGitHubAuth()?.accessToken || process.env.GITHUB_TOKEN;
+    const env: Record<string, string | undefined> = {
       ...process.env,
       TERM: "xterm-256color",
       COLORTERM: "truecolor",
+      ...(githubToken
+        ? { GITHUB_TOKEN: githubToken, GH_TOKEN: githubToken }
+        : {}),
     };
 
     let command = this.session.command;

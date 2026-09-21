@@ -62,6 +62,25 @@ export interface AuthUser {
   picture?: string;
 }
 
+export interface GitHubAuthStatus {
+  connected: boolean;
+  username?: string;
+  avatarUrl?: string;
+  hasOAuthConfig: boolean;
+}
+
+export interface GitHubRepoItem {
+  id: number;
+  name: string;
+  fullName: string;
+  private: boolean;
+  htmlUrl: string;
+  cloneUrl: string;
+  defaultBranch: string;
+  description?: string;
+  updatedAt: string;
+}
+
 // WebSocket message payloads
 export type WSClientMessage =
   | { type: "terminal:input"; sessionId: string; data: string }

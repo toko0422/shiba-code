@@ -1,6 +1,8 @@
 import { Router } from "express";
+import { GitHubRepoItem } from "@shiba-code/shared";
 import { store } from "../store.js";
 import { gitManager } from "../git/gitManager.js";
+import { config } from "../config.js";
 
 export const repoRouter = Router();
 
@@ -8,6 +10,57 @@ export const repoRouter = Router();
 repoRouter.get("/", (_req, res) => {
   const repos = store.getRepositories();
   res.json({ repositories: repos });
+});
+
+// List GitHub repositories for authenticated user
+repoRouter.get("/github", async (_req, res) => {
+  const token = store.getGitHubAuth()?.accessToken || config.githubToken;
+  if (!token) {
+    return res.status(401).json({
+      error:
+        "GitHub is not connected. Please connect your GitHub account or provide a token.",
+    });
+  }
+
+  try {
+    const ghRes = await fetch(
+      "https://api.github.com/user/repos?sort=updated&per_page=100&affiliation=owner,collaborator,organization_member",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "User-Agent": "Shiba-Code",
+          Accept: "application/vnd.github.v3+json",
+        },
+      },
+    );
+
+    if (!ghRes.ok) {
+      const err = (await ghRes.json().catch(() => null)) as any;
+      return res.status(ghRes.status).json({
+        error: err?.message || "Failed to fetch GitHub repositories",
+      });
+    }
+
+    const items = (await ghRes.json()) as any[];
+    const repositories: GitHubRepoItem[] = items.map((r) => ({
+      id: r.id,
+      name: r.name,
+      fullName: r.full_name,
+      private: Boolean(r.private),
+      htmlUrl: r.html_url,
+      cloneUrl: r.clone_url,
+      defaultBranch: r.default_branch || "main",
+      description: r.description || undefined,
+      updatedAt: r.updated_at,
+    }));
+
+    return res.json({ repositories });
+  } catch (err: any) {
+    console.error("Failed to fetch GitHub repositories:", err);
+    return res
+      .status(500)
+      .json({ error: err.message || "Failed to fetch GitHub repositories" });
+  }
 });
 
 // Clone a repository

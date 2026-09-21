@@ -23,8 +23,28 @@ export class GitManager {
     return path.join(this.getRepoRoot(repoId), "worktrees");
   }
 
+  private normalizeRepoUrl(url: string): string {
+    const sshMatch = url.match(/^git@github\.com:([^/]+)\/(.+?)(\.git)?$/);
+    if (sshMatch) {
+      return `https://github.com/${sshMatch[1]}/${sshMatch[2]}.git`;
+    }
+    const httpsMatch = url.match(
+      /^https?:\/\/github\.com\/([^/]+)\/([^/]+?)(\.git)?$/,
+    );
+    if (httpsMatch) {
+      return `https://github.com/${httpsMatch[1]}/${httpsMatch[2]}.git`;
+    }
+    return url;
+  }
+
+  private getGitHubToken(): string | undefined {
+    return store.getGitHubAuth()?.accessToken || config.githubToken || undefined;
+  }
+
   async cloneRepository(url: string, customName?: string): Promise<Repository> {
-    const rawName = customName || path.basename(url, ".git") || "repo";
+    const normalizedUrl = this.normalizeRepoUrl(url);
+    const rawName =
+      customName || path.basename(normalizedUrl, ".git") || "repo";
     const cleanName = rawName.replace(/[^a-zA-Z0-9_-]/g, "_");
     const repoId = `${cleanName}-${Date.now().toString(36)}`;
     const repoRoot = this.getRepoRoot(repoId);
@@ -33,18 +53,43 @@ export class GitManager {
 
     fs.mkdirSync(worktreesDir, { recursive: true });
 
+    const token = this.getGitHubToken();
+    const isGitHub = normalizedUrl.includes("github.com");
+
+    const cloneOptions: string[] = [];
+    if (isGitHub && token) {
+      // Configure insteadOf in the repo config so all clone, fetch, and push
+      // transparently authenticate without exposing the token in origin URL.
+      cloneOptions.push(
+        "-c",
+        `url.https://x-access-token:${token}@github.com/.insteadOf=https://github.com/`,
+      );
+    }
+
     // Clone into 'main' directory
     const git = simpleGit();
-    await git.clone(url, mainPath);
+    await git.clone(normalizedUrl, mainPath, cloneOptions);
 
     const mainGit = simpleGit(mainPath);
+    if (isGitHub && token) {
+      // Ensure the config is persisted locally in the repo
+      try {
+        await mainGit.addConfig(
+          `url.https://x-access-token:${token}@github.com/.insteadOf`,
+          "https://github.com/",
+        );
+      } catch (err) {
+        console.warn("Could not add GitHub token config:", err);
+      }
+    }
+
     const branchSummary = await mainGit.branch();
     const defaultBranch = branchSummary.current || "main";
 
     const repo: Repository = {
       id: repoId,
       name: cleanName,
-      url,
+      url: normalizedUrl,
       localPath: mainPath,
       defaultBranch,
       createdAt: new Date().toISOString(),
@@ -233,6 +278,17 @@ export class GitManager {
 
   async push(worktreePath: string): Promise<void> {
     const git = simpleGit(worktreePath);
+    const token = this.getGitHubToken();
+    if (token) {
+      try {
+        await git.addConfig(
+          `url.https://x-access-token:${token}@github.com/.insteadOf`,
+          "https://github.com/",
+        );
+      } catch {
+        // ignore
+      }
+    }
     const status = await git.status();
     const branch = status.current;
     if (!branch) {
